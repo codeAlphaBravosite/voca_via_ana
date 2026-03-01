@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#030712" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Vocab Master — CUET Zero Error</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+    body{margin:0;background:#030712;overscroll-behavior:none}
+    ::-webkit-scrollbar{width:4px;height:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:#374151;border-radius:2px}
+    .flip-wrap{perspective:1000px}
+    .flip-inner{transform-style:preserve-3d;transition:transform .45s cubic-bezier(.4,0,.2,1);position:relative;height:300px}
+    .flip-inner.flipped{transform:rotateY(180deg)}
+    .flip-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;position:absolute;inset:0;border-radius:1rem}
+    .flip-front{overflow:hidden}
+    .flip-back{transform:rotateY(180deg)}
+    .overflow-y-auto{-webkit-overflow-scrolling:touch}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+<script type="module">
+import{html,render,useState,useEffect,useCallback,useMemo}from'https://esm.sh/htm/preact/standalone';
+
+/* ═══════════════════════════ DATA ═══════════════════════════ */
+
+const PHASES=[
+ {id:1,label:"Phase 1",name:"Thematic Clusters",icon:"🧩",color:"#f59e0b",desc:"Learn words in semantic families",
+  clusters:[
+   {theme:"Talkative vs Silent",pairs:[
+    {label:"Talkative (+)",charge:"+",words:[
+     {word:"Loquacious",meaning:"Excessively talkative",example:"The loquacious host never let anyone else speak."},
+     {word:"Garrulous",meaning:"Tediously talkative",example:"Her garrulous nature annoyed everyone at the meeting."},
+     {word:"Voluble",meaning:"Speaking fluently and at length",example:"The voluble politician charmed the crowd."},
+     {word:"Verbose",meaning:"Using more words than needed",example:"His verbose report could be summarized in one page."},
+    ]},
+    {label:"Silent (−)",charge:"-",words:[
+     {word:"Taciturn",meaning:"Reserved; habitually silent",example:"The taciturn detective revealed nothing.",exam:"2024"},
+     {word:"Reticent",meaning:"Not revealing one's thoughts",example:"She was reticent about her past."},
+     {word:"Reserved",meaning:"Slow to reveal emotions",example:"He remained reserved throughout the interview."},
+     {word:"Laconic",meaning:"Using very few words",example:"His laconic reply was simply 'No.'"},
+    ]},
+   ]},
+   {theme:"Praise vs Criticize",pairs:[
+    {label:"Praise (+)",charge:"+",words:[
+     {word:"Extol",meaning:"Praise enthusiastically",example:"She extolled the virtues of hard work."},
+     {word:"Laud",meaning:"Praise highly",example:"The critics lauded the film."},
+     {word:"Eulogize",meaning:"Praise highly in a speech",example:"He eulogized the fallen hero."},
+     {word:"Sycophantic",meaning:"Excessively flattering to gain favour",example:"The sycophantic aide always agreed with the boss.",exam:"2024"},
+     {word:"Flatter",meaning:"Praise excessively and insincerely",example:"He flattered the judge with hollow compliments."},
+    ]},
+    {label:"Criticize (−)",charge:"-",words:[
+     {word:"Censure",meaning:"Express severe disapproval",example:"The committee censured him for misconduct."},
+     {word:"Castigate",meaning:"Reprimand harshly",example:"The coach castigated the team after the loss."},
+     {word:"Denounce",meaning:"Publicly declare as wrong",example:"She denounced the corrupt official."},
+     {word:"Reprimand",meaning:"Formally rebuke",example:"The officer was reprimanded for insubordination."},
+     {word:"Condemn",meaning:"Express complete disapproval",example:"The judge condemned the act as unethical."},
+    ]},
+   ]},
+   {theme:"Hardworking vs Lazy",pairs:[
+    {label:"Hardworking (+)",charge:"+",words:[
+     {word:"Diligent",meaning:"Having steady, earnest effort",example:"Her diligent study paid off."},
+     {word:"Assiduous",meaning:"Showing great care and effort",example:"He was assiduous in his research."},
+     {word:"Industrious",meaning:"Constantly working hard",example:"The industrious student finished early."},
+     {word:"Meticulous",meaning:"Very careful about details",example:"The meticulous editor caught every error."},
+     {word:"Fastidious",meaning:"Very attentive to detail; hard to please",example:"Her fastidious nature drove her to perfection.",exam:"2024"},
+    ]},
+    {label:"Lazy (−)",charge:"-",words:[
+     {word:"Lethargic",meaning:"Sluggish; lacking energy",example:"He felt lethargic after the heavy meal."},
+     {word:"Indolent",meaning:"Wanting to avoid activity; lazy",example:"The indolent student rarely attended class."},
+     {word:"Sluggish",meaning:"Slow-moving; inactive",example:"The sluggish worker delayed the project."},
+     {word:"Slothful",meaning:"Lazy; disinclined to work",example:"His slothful attitude cost him the promotion."},
+    ]},
+   ]},
+   {theme:"Stubborn vs Flexible",pairs:[
+    {label:"Stubborn (−)",charge:"-",words:[
+     {word:"Obstinate",meaning:"Stubbornly refusing to change",example:"Her obstinate refusal blocked progress."},
+     {word:"Obdurate",meaning:"Unmoved by persuasion",example:"The obdurate judge denied all appeals."},
+     {word:"Intransigent",meaning:"Refusing to compromise",example:"Intransigent negotiators prolonged the conflict."},
+     {word:"Adamant",meaning:"Firmly refusing to change",example:"He was adamant about his decision."},
+    ]},
+    {label:"Flexible (+)",charge:"+",words:[
+     {word:"Docile",meaning:"Ready to accept control; submissive",example:"The docile student followed every instruction."},
+     {word:"Compliant",meaning:"Disposed to agree; obedient",example:"A compliant team makes leadership easy."},
+     {word:"Amenable",meaning:"Open and responsive to suggestion",example:"She was amenable to the proposed changes."},
+     {word:"Pliable",meaning:"Easily influenced; flexible",example:"Young minds are pliable and curious."},
+    ]},
+   ]},
+  ]},
+ {id:2,label:"Phase 2",name:"Root Word Algorithm",icon:"🔬",color:"#10b981",desc:"Decode unseen words using roots",
+  roots:[
+   {root:"-CIDE",meaning:"To kill",words:[
+    {word:"Patricide",root_part:"Pater (Father)",meaning:"Killing of one's father"},
+    {word:"Matricide",root_part:"Mater (Mother)",meaning:"Killing of one's mother"},
+    {word:"Uxoricide",root_part:"Uxor (Wife)",meaning:"Killing of one's wife"},
+    {word:"Regicide",root_part:"Regis (King)",meaning:"Killing of a king"},
+    {word:"Homicide",root_part:"Homo (Man)",meaning:"Killing of a human being"},
+    {word:"Fratricide",root_part:"Frater (Brother)",meaning:"Killing of one's brother"},
+   ]},
+   {root:"-CRACY/-ARCHY",meaning:"Government/Rule",words:[
+    {word:"Theocracy",root_part:"Theo (God)",meaning:"Rule by religious authority"},
+    {word:"Plutocracy",root_part:"Pluto (Wealth)",meaning:"Rule by the wealthy"},
+    {word:"Oligarchy",root_part:"Oligos (Few)",meaning:"Rule by a small group"},
+    {word:"Bureaucracy",root_part:"Bureau (Office)",meaning:"Governance by officials"},
+    {word:"Aristocracy",root_part:"Aristos (Best)",meaning:"Rule by the nobility"},
+    {word:"Democracy",root_part:"Demos (People)",meaning:"Rule by the people"},
+   ]},
+   {root:"-PHILE/-PHOBE",meaning:"Love/Fear",words:[
+    {word:"Bibliophile",root_part:"Biblio (Books)",meaning:"Lover of books"},
+    {word:"Agoraphobia",root_part:"Agora (Open space)",meaning:"Fear of open/crowded spaces"},
+    {word:"Misanthrope",root_part:"Misos+Anthropos",meaning:"Hater of mankind"},
+    {word:"Xenophobia",root_part:"Xenos (Stranger)",meaning:"Fear of foreigners"},
+    {word:"Technophobe",root_part:"Techne (Skill)",meaning:"Person who fears technology"},
+   ]},
+   {root:"-LOGY",meaning:"Study of",words:[
+    {word:"Etymology",root_part:"Etymo (Root/Origin)",meaning:"Study of word origins"},
+    {word:"Entomology",root_part:"Entomo (Insect)",meaning:"Study of insects"},
+    {word:"Anthropology",root_part:"Anthropo (Man)",meaning:"Study of humanity"},
+    {word:"Chronology",root_part:"Chrono (Time)",meaning:"Study/arrangement of time"},
+    {word:"Pathology",root_part:"Pathos (Disease)",meaning:"Study of diseases"},
+    {word:"Psychology",root_part:"Psyche (Mind)",meaning:"Study of the mind"},
+   ]},
+   {root:"-SOMN",meaning:"Related to sleep",words:[
+    {word:"Somnambulist",root_part:"Somn+Ambulo (Walk)",meaning:"Sleepwalker"},
+    {word:"Somniloquist",root_part:"Somn+Loqui (Speak)",meaning:"One who talks in sleep"},
+    {word:"Insomnia",root_part:"In (Not)+Somn",meaning:"Inability to sleep"},
+    {word:"Somnolent",root_part:"Somn+-lent",meaning:"Drowsy; sleepy"},
+   ]},
+  ]},
+ {id:3,label:"Phase 3",name:"Phrasal Verb Matrix",icon:"⚡",color:"#6366f1",desc:"Master the 5 most dangerous verbs",
+  verbs:[
+   {verb:"LOOK",entries:[
+    {form:"Look after",meaning:"Take care of",example:"She looks after her elderly mother."},
+    {form:"Look into",meaning:"Investigate",example:"Police will look into the matter."},
+    {form:"Look down upon",meaning:"Despise; regard with contempt",example:"Don't look down upon anyone."},
+    {form:"Look up to",meaning:"Respect; admire",example:"Students look up to their teachers."},
+    {form:"Look for",meaning:"Search for",example:"I am looking for my keys."},
+    {form:"Look through",meaning:"Examine carefully",example:"Please look through these documents."},
+   ]},
+   {verb:"PUT",entries:[
+    {form:"Put off",meaning:"Postpone",example:"The match was put off due to rain."},
+    {form:"Put out",meaning:"Extinguish",example:"Firefighters put out the blaze."},
+    {form:"Put up with",meaning:"Tolerate",example:"I cannot put up with this noise."},
+    {form:"Put forward",meaning:"Propose / suggest",example:"She put forward a new idea."},
+    {form:"Put down",meaning:"Suppress / insult",example:"He always puts others down."},
+   ]},
+   {verb:"CALL",entries:[
+    {form:"Call off",meaning:"Cancel",example:"They called off the protest."},
+    {form:"Call upon",meaning:"Invite / formally request",example:"The principal called upon students to participate.",exam:"2025"},
+    {form:"Call for",meaning:"Demand / require",example:"The situation calls for patience."},
+    {form:"Call out",meaning:"Challenge / expose",example:"She called him out for lying."},
+   ]},
+   {verb:"BREAK",entries:[
+    {form:"Break down",meaning:"Stop functioning / cry",example:"The car broke down on the highway."},
+    {form:"Break into",meaning:"Enter by force",example:"Thieves broke into the house."},
+    {form:"Break out",meaning:"Spread suddenly (disease/fire)",example:"A fire broke out in the factory."},
+    {form:"Break up",meaning:"End a relationship / disperse",example:"The crowd was asked to break up."},
+   ]},
+   {verb:"TURN",entries:[
+    {form:"Turn down",meaning:"Reject",example:"She turned down the offer."},
+    {form:"Turn up",meaning:"Arrive / appear",example:"He turned up late for the exam."},
+    {form:"Turn into",meaning:"Transform",example:"The caterpillar turned into a butterfly.",exam:"2025"},
+    {form:"Turn out",meaning:"Result in / produce",example:"The event turned out to be a success."},
+   ]},
+  ]},
+ {id:4,label:"Phase 4",name:"Idioms & Foreign Words",icon:"🌍",color:"#ec4899",desc:"Visual grouping by origin theme",
+  groups:[
+   {group:"Color Idioms 🎨",items:[
+    {phrase:"Blue blood",meaning:"Of royal/noble birth",example:"She is blue blood — her ancestors were kings."},
+    {phrase:"Out of the blue",meaning:"Unexpectedly; suddenly",example:"He called me out of the blue after years."},
+    {phrase:"In the red",meaning:"In debt; making a loss",example:"The company has been in the red for months."},
+    {phrase:"White elephant",meaning:"Expensive but useless possession",example:"That old factory is now a white elephant."},
+    {phrase:"Green with envy",meaning:"Very jealous",example:"She was green with envy at her friend's success."},
+    {phrase:"Black sheep",meaning:"Disreputable member of a group",example:"He is the black sheep of the family."},
+   ]},
+   {group:"Animal Idioms 🦁",items:[
+    {phrase:"Dark horse",meaning:"Unexpected winner/candidate",example:"She was the dark horse of the election."},
+    {phrase:"Let the cat out of the bag",meaning:"Accidentally reveal a secret",example:"He let the cat out of the bag about the surprise."},
+    {phrase:"Wild goose chase",meaning:"Hopeless or useless search",example:"That investigation was a wild goose chase."},
+    {phrase:"Elephant in the room",meaning:"Obvious problem nobody discusses",example:"The budget deficit is the elephant in the room."},
+    {phrase:"Kill two birds",meaning:"Accomplish two things at once",example:"I'll kill two birds with one stone on this trip."},
+   ]},
+   {group:"Foreign Words 🌐",items:[
+    {phrase:"Alma Mater",lang:"Latin",meaning:"One's former school or university"},
+    {phrase:"Lingua Franca",lang:"Latin",meaning:"Common language between speakers of different tongues"},
+    {phrase:"Modus Operandi",lang:"Latin",meaning:"Method of working; MO"},
+    {phrase:"Bona fide",lang:"Latin",meaning:"Genuine; authentic; in good faith"},
+    {phrase:"Pro bono",lang:"Latin",meaning:"Work done for free (for public good)"},
+    {phrase:"Tour de force",lang:"French",meaning:"Masterpiece; impressive achievement",exam:"2023"},
+    {phrase:"Status quo",lang:"Latin",meaning:"Existing state of affairs"},
+    {phrase:"De facto",lang:"Latin",meaning:"In practice (even if not officially)"},
+    {phrase:"Quid pro quo",lang:"Latin",meaning:"A favour given in return for something"},
+    {phrase:"Carte blanche",lang:"French",meaning:"Complete freedom to act as one wishes"},
+   ]},
+  ]},
+ {id:5,label:"Phase 5",name:"Examiner Traps",icon:"⚠️",color:"#ef4444",desc:"Paronyms, secondary meanings, contronyms",
+  traps:[
+   {type:"Paronyms",tip:"Words that look similar but mean very different things. NTA tested Prescribed vs Proscribed in 2024 Set A Q48!",
+    pairs:[
+     {a:"Ingenious",a_meaning:"Clever; brilliant",b:"Ingenuous",b_meaning:"Innocent; naive; unsuspecting"},
+     {a:"Elicit",a_meaning:"Draw out; evoke",b:"Illicit",b_meaning:"Illegal; forbidden"},
+     {a:"Compliment",a_meaning:"Expression of praise",b:"Complement",b_meaning:"Something that completes or goes well with"},
+     {a:"Venal",a_meaning:"Open to bribery; corrupt",b:"Venial",b_meaning:"A minor, pardonable fault/sin"},
+     {a:"Eminent",a_meaning:"Famous and respected",b:"Imminent",b_meaning:"About to happen very soon"},
+     {a:"Prescribe",a_meaning:"To recommend/authorize",b:"Proscribe",b_meaning:"To forbid; prohibit",exam:"2024"},
+     {a:"Flounder",a_meaning:"Struggle helplessly",b:"Founder",b_meaning:"To sink; to fail completely"},
+     {a:"Discreet",a_meaning:"Careful; tactful",b:"Discrete",b_meaning:"Separate; distinct; individual"},
+    ]},
+   {type:"Secondary Meanings",tip:"Students memorize the primary meaning and stop. Examiners test the secondary meaning.",
+    words:[
+     {word:"Wanting",primary:"Desiring something",secondary:"Lacking; deficient",ex2:"His skills were found wanting."},
+     {word:"Pedestrian",primary:"A person walking",secondary:"Dull; unimaginative; commonplace",ex2:"The writing style was pedestrian."},
+     {word:"Fleece",primary:"Wool of a sheep",secondary:"To swindle; cheat someone",ex2:"The scammer fleeced tourists."},
+     {word:"Qualify",primary:"To meet requirements",secondary:"To limit; restrict a statement",ex2:"I must qualify my earlier statement."},
+     {word:"Sanction",primary:"Official permission/approval",secondary:"A penalty imposed on a country",ex2:"US placed sanctions on the regime."},
+     {word:"Flagrant",primary:"Conspicuously offensive",secondary:"Blatant; shockingly obvious",ex2:"A flagrant violation of the rules.",exam:"2025"},
+    ]},
+   {type:"Contronyms",tip:"These words are their own opposites! Used in the hardest antonym questions.",
+    words:[
+     {word:"Sanction",s1:"To approve",s2:"To penalize",e1:"Boss sanctioned the project.",e2:"UN sanctioned the nation."},
+     {word:"Cleave",s1:"To stick/cling together",s2:"To split apart",e1:"He cleaved to his beliefs.",e2:"The axe cleaved the wood."},
+     {word:"Dust",s1:"To add fine particles",s2:"To remove fine particles",e1:"Dusting the cake with sugar.",e2:"Dusting the furniture."},
+     {word:"Buckle",s1:"To fasten",s2:"To bend and collapse",e1:"Buckle your seatbelt.",e2:"The bridge buckled under weight."},
+     {word:"Clip",s1:"To fasten together",s2:"To cut apart",e1:"Clip these papers together.",e2:"Clip the hedge."},
+    ]},
+  ]},
+ {id:6,label:"Phase 6",name:"Academic Vocabulary",icon:"📰",color:"#8b5cf6",desc:"Editorial & academic words from live sources",
+  words:[
+   {word:"Draconian",meaning:"Excessively harsh (laws/rules)",charge:"-",example:"Draconian measures were imposed during the crisis."},
+   {word:"Partisan",meaning:"Prejudiced in favour of a group/cause",charge:"-",example:"His partisan reporting lacked objectivity."},
+   {word:"Pragmatic",meaning:"Practical rather than idealistic",charge:"0",example:"We need a pragmatic solution, not theories.",exam:"2025"},
+   {word:"Hegemony",meaning:"Dominance of one country/group over others",charge:"-",example:"The nation sought to break US hegemony."},
+   {word:"Empirical",meaning:"Based on evidence and observation",charge:"+",example:"The study needed empirical data."},
+   {word:"Paradigm",meaning:"A typical example; a framework of thought",charge:"0",example:"This discovery shifted the scientific paradigm."},
+   {word:"Catalyst",meaning:"Something that speeds up change",charge:"+",example:"The speech acted as a catalyst for reform."},
+   {word:"Dichotomy",meaning:"A division into two contrasting things",charge:"0",example:"The dichotomy between wealth and poverty."},
+   {word:"Ephemeral",meaning:"Lasting for a very short time",charge:"-",example:"Fame can be ephemeral."},
+   {word:"Cognitive",meaning:"Related to mental processes",charge:"0",example:"Cognitive development peaks in early childhood."},
+   {word:"Synthesis",meaning:"Combining elements to form a whole",charge:"+",example:"The essay is a synthesis of multiple theories."},
+   {word:"Dogmatic",meaning:"Asserting opinions as absolute truth",charge:"-",example:"His dogmatic stance closed all discussion."},
+   {word:"Esoteric",meaning:"Understood by a small, select group only",charge:"0",example:"Quantum physics remains esoteric to most."},
+   {word:"Insidious",meaning:"Proceeding gradually and harmfully",charge:"-",example:"The disease has an insidious onset."},
+   {word:"Proliferate",meaning:"Increase rapidly in number",charge:"0",example:"Misinformation continues to proliferate online."},
+  ]},
+];
+
+const QUIZ=[
+ {type:"odd_one_out",id:"q1",question:"Find the ODD ONE OUT:",words:["Mitigate","Assuage","Exacerbate","Palliate"],answer:2,
+  explanation:"A,B,D all mean 'to reduce/relieve'. C (Exacerbate) means 'to make worse'.",
+  tip:"Polarity: Mitigate(+), Assuage(+), Palliate(+) — Exacerbate(−) is the only negative. Instant odd one out."},
+ {type:"odd_one_out",id:"q2",question:"Find the ODD ONE OUT:",words:["Loquacious","Garrulous","Taciturn","Voluble"],answer:2,
+  explanation:"A,B,D are all synonyms for 'talkative'. C (Taciturn) means habitually silent — the opposite.",
+  tip:"All are in the Talkative cluster except Taciturn which is in the Silent cluster. Opposite charge = odd one out."},
+ {type:"odd_one_out",id:"q3",question:"Find the ODD ONE OUT:",words:["Obstinate","Amenable","Intransigent","Obdurate"],answer:1,
+  explanation:"A,C,D all mean 'stubborn'. B (Amenable) means 'open to suggestion' — the antonym.",
+  tip:"Amenable belongs to the Flexible(+) cluster. A,C,D are all Stubborn(−). Different charge = the odd one."},
+ {type:"synonym",id:"q4",question:"Choose the SYNONYM of: CASTIGATE",options:["Praise","Reprimand","Ignore","Reward"],answer:1,
+  explanation:"Castigate means to reprimand or criticize harshly. 'Reprimand' is its direct synonym.",
+  tip:"CASTIGATE(−) is in the Criticize cluster. Option A(+) is eliminated by Polarity. Only B is also negative."},
+ {type:"synonym",id:"q5",question:"Choose the SYNONYM of: ASSIDUOUS",options:["Lazy","Indolent","Painstaking","Reckless"],answer:2,
+  explanation:"Assiduous means showing great care and diligence. 'Painstaking' is its closest synonym.",
+  tip:"Assiduous is Hardworking(+). A and B are both Lazy(−) — eliminate both. C is clearly the positive match."},
+ {type:"antonym",id:"q6",question:"Choose the ANTONYM of: TACITURN",options:["Reticent","Loquacious","Reserved","Laconic"],answer:1,
+  explanation:"Taciturn means habitually silent(−). Its antonym is Loquacious — excessively talkative(+).",
+  tip:"A,C,D are all in the Silent cluster. Only B (Loquacious) has the opposite charge(+). Antonym = opposite charge."},
+ {type:"antonym",id:"q7",question:"Choose the ANTONYM of: OBDURATE",options:["Adamant","Amenable","Intransigent","Obstinate"],answer:1,
+  explanation:"Obdurate means unmoved by persuasion (stubborn). Amenable means open to suggestion — its antonym.",
+  tip:"A,C,D are all Stubborn(−). B (Amenable) is Flexible(+). Twins Rule: A,C,D are near-twins — eliminate all three."},
+ {type:"contextual",id:"q8",question:"The lawyer tried to DOCTOR the evidence.\n\nChoose the best replacement for the underlined word:",
+  options:["Heal","Treat","Manipulate","Present"],answer:2,
+  explanation:"'Doctor' is used in its secondary meaning: to tamper with or falsify. Legal context demands 'Manipulate'.",
+  tip:"Grammar Filter: 'doctor' is a VERB here. Secondary Meaning trap — examiners love using common words in rare senses."},
+ {type:"contextual",id:"q9",question:"Despite his FLAGRANT disregard for the rules, no action was taken.\n\nChoose the best replacement:",
+  options:["Minor","Secret","Obvious","Occasional"],answer:2,
+  explanation:"Flagrant means conspicuously offensive or blatantly wrong. 'Obvious' captures this best in context.",
+  tip:"Flagrant appeared in the 2025 paper! A (Minor) and D (Occasional) suggest small/rare. B (Secret) contradicts it."},
+ {type:"double_blank",id:"q10",question:"Despite his _____ wealth, the businessman lived a surprisingly _____ life.",
+  options:[{a:"immense",b:"lavish"},{a:"meager",b:"frugal"},{a:"enormous",b:"Spartan"},{a:"inherited",b:"corrupt"}],answer:2,
+  explanation:"'Despite' signals contrast. Blank 1 = wealth(+). Blank 2 = lifestyle(−). 'Enormous'(+) + 'Spartan'(−) is the only true contrast.",
+  tip:"DESPITE = Red Light → tone reverses. Check 2nd blank first: 'Spartan' means simple/austere(−). Then verify Blank 1."},
+ {type:"double_blank",id:"q11",question:"The _____ professor was known for his _____ lectures that put students to sleep.",
+  options:[{a:"dynamic",b:"riveting"},{a:"verbose",b:"soporific"},{a:"taciturn",b:"engaging"},{a:"fastidious",b:"inspiring"}],answer:1,
+  explanation:"'Put students to sleep' = both blanks must be negative. Soporific means sleep-inducing. Verbose = excessively wordy.",
+  tip:"Context Rule: 'put students to sleep'(−) → both blanks must be negative. Check Blank 2 first: only 'soporific' fits."},
+ {type:"analogy",id:"q12",question:"TACITURN : GARRULOUS :: LETHARGIC : ?",
+  options:["Indolent","Sluggish","Assiduous","Apathetic"],answer:2,
+  explanation:"Pattern = ANTONYMS. Taciturn(−) ↔ Garrulous(+). So antonym of Lethargic(−) = Assiduous(+).",
+  tip:"Lethargic is Lazy(−). Need Hardworking(+) = Assiduous. A,B,D are all also Lazy(−) — same cluster, not opposite."},
+ {type:"analogy",id:"q13",question:"MATRICIDE : MOTHER :: REGICIDE : ?",
+  options:["Brother","Sister","King","Country"],answer:2,
+  explanation:"Matricide = killing of one's mother (Mater). Regicide = killing of a king (Regis). Root -CIDE = to kill.",
+  tip:"Apply the -CIDE root. Pattern: [Root]-cide → victim. Mater(Mother), Regis(King). Regicide = killing of a King."},
+ {type:"word_usage",id:"q14",word:"FAST",question:"Identify the sentence where FAST is used INCORRECTLY:",
+  options:["He drives very fast on the highway.","She observed a strict fast on Tuesdays.","Tie the rope fast to the tree.","He is a fast asleep on the couch."],answer:3,
+  explanation:"D is incorrect. 'He is fast asleep' is correct — no 'a'. 'Fast' here is an adverb; inserting 'a' is grammatically wrong.",
+  tip:"Fast = adverb (quickly), noun (not eating), or adjective (securely). 'A fast asleep' inserts 'a' before an adverb — the error."},
+ {type:"word_usage",id:"q15",word:"SANCTION",question:"Identify the sentence where SANCTION is used INCORRECTLY:",
+  options:["The committee sanctioned the new budget.","Countries placed economic sanctions on the regime.","The principal sanctioned the cultural program.","The sanction of the injury prevented him from playing."],answer:3,
+  explanation:"D is incorrect. 'Sanction' means approval OR penalty — not the severity/impact of an injury.",
+  tip:"Contronym alert: Sanction = approve OR penalize. Neither sense means 'impact of injury'. D is the only misuse."},
+ {type:"paronym",id:"q16",question:"Choose the correct word:\n\n\"The new law will _____ smoking in public places.\"",
+  options:["Prescribe","Proscribe","Describe","Inscribe"],answer:1,
+  explanation:"Proscribe = to forbid/prohibit. Prescribe = to recommend/authorize. Banning smoking → PROSCRIBE.",
+  tip:"This exact pair appeared in CUET 2024 Set A Q48! Memory trick: PRO-scribe = PROhibit."},
+ {type:"paronym",id:"q17",question:"Choose the correct word:\n\n\"Her _____ plan to escape showed great creativity.\"",
+  options:["Ingenuous","Indigenous","Ingenious","Indigent"],answer:2,
+  explanation:"Ingenious = clever; brilliant. Ingenuous = innocent/naive. A creative escape plan requires INGENIOUS.",
+  tip:"Memory trick: GENIUS is hiding inside inGENIOUS. In-GENIUS-ous = brilliantly clever."},
+ {type:"spelling",id:"q18",question:"Choose the CORRECTLY SPELLED word:",
+  options:["Beurocracy","Bureaucracy","Burocracy","Bureacracy"],answer:1,
+  explanation:"BUREAUCRACY — Bureau + cracy. B-U-R-E-A-U-C-R-A-C-Y.",
+  tip:"Memory trick: BUREAU (writing desk) + CRACY (rule). Think 'ruled by desks.' Double-check: B-U-R-E-A-U."},
+ {type:"spelling",id:"q19",question:"Choose the CORRECTLY SPELLED word:",
+  options:["Accomodate","Accommodate","Acommodate","Accommadate"],answer:1,
+  explanation:"ACCOMMODATE has double 'c' AND double 'm'. A-C-C-O-M-M-O-D-A-T-E.",
+  tip:"Memory trick: Accommodate can fit TWO 'c's and TWO 'm's — it ACCOMMODATES everyone!"},
+ {type:"synonym",id:"q20",question:"Choose the SYNONYM of: LAUD",
+  options:["Criticize","Condemn","Extol","Denounce"],answer:2,
+  explanation:"Laud means to praise. Extol also means to praise enthusiastically — both are in the Praise(+) cluster.",
+  tip:"Laud(+) = Praise cluster. A,B,D are all Criticize(−). Three negatives against one positive → C must be the synonym."},
+];
+
+const TYPE_LABELS={odd_one_out:"Odd One Out",synonym:"Synonym",antonym:"Antonym",contextual:"Contextual",double_blank:"Double Blank",analogy:"Analogy",word_usage:"Word Usage",paronym:"Paronym Trap",spelling:"Spelling"};
+
+const TECHNIQUES=[
+ {id:1,name:"Polarity Method",icon:"⚡",color:"#f59e0b",subtitle:"The Ultimate Hack — 5 seconds",
+  steps:["Every word has a charge: + (positive), − (negative), or 0 (neutral)","For SYNONYM: find option with SAME charge as the target word","For ANTONYM: find option with OPPOSITE charge","Examiners almost always give 3 options with one charge and 1 with the other — the lone option is the answer"],
+  eq:{q:"Synonym of MELLIFLUOUS:",opts:["Cacophonous (−)","Harsh (−)","Soothing (+)","Strident (−)"],ans:"C — Three options are negative. The lone positive word must be the synonym. Time: 5 seconds.",ai:2}},
+ {id:2,name:"Grammar Filter",icon:"🔬",color:"#10b981",subtitle:"Eliminate by Parts of Speech",
+  steps:["Identify the grammatical role of the underlined word (noun/verb/adj/adv)","Immediately eliminate any options that are a different part of speech","Nouns end in -tion, -ment, -ness, -ity. Verbs show action. Adjectives describe.","Often eliminates 2–3 wrong options instantly without knowing the word's meaning"],
+  eq:{q:"Synonym of 'abdicate' in 'abdicate the throne':",opts:["Resignation (Noun)","Relinquish (Verb)","Cowardly (Adj)","Abandonment (Noun)"],ans:"B — Abdicate is a verb. A and D are nouns. C is an adjective. Only B is a verb.",ai:1}},
+ {id:3,name:"Conjunction Pivot",icon:"🚦",color:"#ef4444",subtitle:"Traffic signals for sentence direction",
+  steps:["🟢 GREEN LIGHT (AND, MOREOVER, SIMILARLY): tone CONTINUES — positive follows positive","🔴 RED LIGHT (BUT, DESPITE, ALTHOUGH, YET): tone REVERSES","Step 1: Find the conjunction. Step 2: Determine its colour. Step 3: Set the blank's polarity.","Works for ALL fill-in-the-blank and cloze test questions without exception"],
+  eq:{q:"Despite his affluent background, he lived a _____ life.",opts:["Opulent (+)","Lavish (+)","Frugal (−)","Luxurious (+)"],ans:"C — DESPITE = Red Light. Affluent(+) reverses → need (−). Three(+) cancel out. Only Frugal(−) fits.",ai:2}},
+ {id:4,name:"Option Twins Rule",icon:"👯",color:"#6366f1",subtitle:"If two options mean the same, eliminate BOTH",
+  steps:["Scan all 4 options for any pair that means essentially the same thing","An MCQ cannot have two correct answers — so if B and C are synonyms, neither is the answer","This collapses 4 choices to 2 instantly, then use Polarity or Context to pick one","Watch for: examiners often put the Synonym as Option A in Antonym questions to trap hasty readers"],
+  eq:{q:"Antonym of LETHARGIC:",opts:["Indolent","Sluggish","Assiduous","Slothful"],ans:"C — A,B,D are all TWINS (Lazy cluster). Three twins → eliminate all three. C (Assiduous = hardworking) is the unique opposite.",ai:2}},
+ {id:5,name:"Unique Anchor (Matrix)",icon:"🎯",color:"#ec4899",subtitle:"Solve Match-the-Column in under 30 seconds",
+  steps:["NEVER solve all 4 pairs — it wastes 2 minutes the examiner counts on","Step 1: Scan List I. Pick the ONE pair you are 100% certain about (e.g., A → 3)","Step 2: Look at the 4 option codes. Find which one contains your certain match","Step 3: If only one option has it → click and move on. Done."],
+  eq:{q:"Strategy: You're 100% sure Word A matches Meaning 3:",opts:["A-1, B-2, C-4, D-3","A-3, B-1, C-2, D-4","A-3, B-4, C-1, D-2","A-2, B-3, C-1, D-4"],ans:"Check which options have A-3: both B and C do. Now find your second sure match to eliminate one. Done in 30 seconds.",ai:-1}},
+ {id:6,name:"Verbal Math (Prefixes)",icon:"🧮",color:"#8b5cf6",subtitle:"Decode any word from its prefix alone",
+  steps:["EU/BENE = GOOD(+): Eulogy, Euphoria, Benevolent, Benefactor","MAL/DYS = BAD(−): Malevolent, Malign, Dystopia, Dysfunctional","A/AN = NOT/WITHOUT: Apathy, Amorphous, Anarchy, Anomaly","LOQU/DICT = SPEAK: Loquacious, Somniloquy, Contradict, Dictator"],
+  eq:{q:"What does MALADROIT mean?",opts:["Skillful","Honest","Clumsy","Hasty"],ans:"C — MAL = Bad. Adroit = Skillful. Bad at skill = Clumsy. No dictionary needed.",ai:2}},
+ {id:7,name:"Extreme Word Rejection",icon:"🚫",color:"#f97316",subtitle:"Academic texts avoid absolute language",
+  steps:["REJECT options containing: Always, Never, Completely, Absolutely, Impossible","PREFER options containing: Often, Rarely, Partially, Difficult, Tends to, May","Newspapers and academic journals use qualified, moderate language — never absolutes","Apply this to RC vocabulary questions and any inference/attitude question"],
+  eq:{q:"The author's attitude towards technology is:",opts:["Completely opposed to all technology","Cautiously optimistic about its potential","Absolutely in favour of unrestricted use","Never considers its downsides"],ans:"B — A,C,D all contain absolute words. Academic authors use nuanced language. B is the only qualified statement.",ai:1}},
+ {id:8,name:"Double Blank Pivot",icon:"✌️",color:"#14b8a6",subtitle:"Test the second blank FIRST",
+  steps:["Step 1: Read the full sentence — identify context clues near each blank","Step 2: The second blank usually has more context clues (end of sentence)","Step 3: Scan ONLY the second word of every option. Eliminate those that don't fit","Step 4: From remaining 1–2 options, verify the first word fits — done"],
+  eq:{q:"Despite _____ wealth, he lived a _____ life.",opts:["lavish … opulent","enormous … Spartan","meager … frugal","inherited … corrupt"],ans:"Check 2nd blank: 'Spartan'(−) fits 'Despite' contrast. Confirm 1st: 'enormous wealth'(+) → contrast complete. Answer: B.",ai:1}},
+];
+
+/* ═══════════════════════════ HELPERS ═══════════════════════════ */
+
+function buildCards(phase){
+ if(phase.id===1) return phase.clusters.flatMap(c=>c.pairs.flatMap(p=>p.words.map(w=>({...w,cluster:p.label,theme:c.theme,charge:p.charge}))));
+ if(phase.id===2) return phase.roots.flatMap(r=>r.words.map(w=>({...w,root:r.root,root_meaning:r.meaning})));
+ if(phase.id===3) return phase.verbs.flatMap(v=>v.entries.map(e=>({word:e.form,meaning:e.meaning,example:e.example,exam:e.exam})));
+ if(phase.id===4) return phase.groups.flatMap(g=>g.items.map(i=>({word:i.phrase,meaning:i.meaning,example:i.example||"",lang:i.lang,group:g.group,exam:i.exam})));
+ if(phase.id===5) return[
+  ...phase.traps[0].pairs.map(p=>({word:p.a,meaning:p.a_meaning,also:p.b,also_meaning:p.b_meaning,trap:"paronym",exam:p.exam})),
+  ...phase.traps[1].words.map(w=>({word:w.word,meaning:w.primary,secondary:w.secondary,example:w.ex2,trap:"secondary",exam:w.exam})),
+  ...phase.traps[2].words.map(w=>({word:w.word,meaning:w.s1,sense2:w.s2,example:w.e1,ex2:w.e2,trap:"contronym"})),
+ ];
+ if(phase.id===6) return phase.words;
+ return[];
+}
+
+function ls_get(key){try{const v=localStorage.getItem(key);return v?JSON.parse(v):null;}catch(e){return null;}}
+function ls_set(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch(e){}}
+
+function ChargeTag({charge}){
+ if(!charge)return null;
+ const map={"+":["bg-emerald-500/20 text-emerald-400 border-emerald-500/40","+"],"-":["bg-rose-500/20 text-rose-400 border-rose-500/40","−"],"0":["bg-amber-500/20 text-amber-400 border-amber-500/40","N"]};
+ const[cls,lbl]=map[charge]||map["0"];
+ return html`<span class=${`text-xs font-bold px-1.5 py-0.5 rounded border ${cls}`}>${lbl}</span>`;
+}
+
+function ExamTag({exam}){
+ if(!exam)return null;
+ return html`<span class="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded px-1.5 py-0.5">★ ${exam}</span>`;
+}
+
+function ProgressRing({pct,size=80,stroke=7,color="#f59e0b"}){
+ const r=(size-stroke)/2,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;
+ return html`<svg width=${size} height=${size} style=${{transform:"rotate(-90deg)"}}>
+  <circle cx=${size/2} cy=${size/2} r=${r} fill="none" stroke="#1f2937" stroke-width=${stroke}/>
+  <circle cx=${size/2} cy=${size/2} r=${r} fill="none" stroke=${color} stroke-width=${stroke}
+   stroke-dasharray=${circ} stroke-dashoffset=${offset} stroke-linecap="round"
+   style=${{transition:"stroke-dashoffset 0.6s ease"}}/>
+ </svg>`;
+}
+
+/* ═══════════════════════════ FLASHCARD ═══════════════════════════ */
+
+function PhaseFlashcards({phase,progress,onMarkKnown,onMarkReview}){
+ const[idx,setIdx]=useState(0);
+ const[flipped,setFlipped]=useState(false);
+ const cards=useMemo(()=>buildCards(phase),[phase]);
+ const card=cards[idx]||null;
+ const ckey=`p${phase.id}_c${idx}`;
+ const known=progress[ckey]==="known";
+ const review=progress[ckey]==="review";
+ const knownCount=useMemo(()=>cards.filter((_,i)=>progress[`p${phase.id}_c${i}`]==="known").length,[cards,progress,phase.id]);
+ const pct=cards.length?Math.round((knownCount/cards.length)*100):0;
+ const next=()=>{setIdx(i=>Math.min(i+1,cards.length-1));setFlipped(false);};
+ const prev=()=>{setIdx(i=>Math.max(i-1,0));setFlipped(false);};
+ if(!card)return html`<p class="text-gray-400 text-center p-8">No cards here.</p>`;
+ return html`<div class="flex flex-col gap-4">
+  <div class="flex items-center justify-between text-sm">
+   <span class="text-gray-400">${idx+1} / ${cards.length}</span>
+   <span style=${{color:phase.color}} class="font-bold">${knownCount} mastered (${pct}%)</span>
+  </div>
+  <div class="h-1.5 bg-gray-800 rounded-full">
+   <div class="h-1.5 rounded-full transition-all duration-500" style=${{width:`${pct}%`,background:phase.color}}></div>
+  </div>
+  <div class="flip-wrap" style=${{height:"300px"}}>
+   <div class=${`flip-inner${flipped?" flipped":""}`} onClick=${()=>setFlipped(f=>!f)} style=${{cursor:"pointer"}}>
+    <div class="flip-face flip-front border border-gray-700 bg-gray-900 flex flex-col items-center justify-center p-6 gap-3 rounded-2xl">
+     <div class="flex gap-2 flex-wrap justify-center">
+      ${card.charge&&html`<${ChargeTag} charge=${card.charge}/>`}
+      ${card.exam&&html`<${ExamTag} exam=${card.exam}/>`}
+      ${card.cluster&&html`<span class="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">${card.cluster}</span>`}
+      ${card.root&&html`<span class="text-xs rounded px-2 py-0.5" style=${{background:phase.color+"22",color:phase.color,border:`1px solid ${phase.color}44`}}>${card.root}</span>`}
+      ${card.group&&html`<span class="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">${card.group}</span>`}
+      ${card.trap&&html`<span class="text-xs bg-red-500/20 text-red-400 border border-red-500/40 rounded px-2 py-0.5">${card.trap}</span>`}
+     </div>
+     <p class="text-3xl font-bold text-white text-center leading-tight">${card.word}</p>
+     <p class="text-gray-500 text-sm">Tap to reveal →</p>
+     ${known&&html`<div class="absolute top-3 right-3 w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-sm">✓</div>`}
+     ${review&&html`<div class="absolute top-3 right-3 w-7 h-7 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 text-sm">↩</div>`}
+    </div>
+    <div class="flip-face flip-back border flex flex-col p-5 gap-2.5 overflow-y-auto rounded-2xl" style=${{background:"#0f172a",borderColor:phase.color+"55"}}>
+     <p class="text-xl font-bold text-white flex-shrink-0">${card.word}</p>
+     <div class="flex-shrink-0"><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Meaning</p><p class="text-gray-200 text-sm">${card.meaning}</p></div>
+     ${card.secondary&&html`<div class="flex-shrink-0"><p class="text-xs text-rose-400 uppercase tracking-wider mb-1">⚠ Secondary Meaning (Exam Trap!)</p><p class="text-gray-200 text-sm">${card.secondary}</p></div>`}
+     ${card.root_meaning&&html`<div class="flex-shrink-0"><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Root</p><p class="text-gray-400 text-sm">${card.root} = ${card.root_meaning}</p>${card.root_part&&html`<p class="text-gray-400 text-sm">${card.root_part}</p>`}</div>`}
+     ${card.example&&html`<div class="flex-shrink-0"><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Example</p><p class="text-gray-300 text-sm italic">"${card.example}"</p></div>`}
+     ${card.also&&html`<div class="p-2.5 bg-amber-500/10 rounded-lg border border-amber-500/20 flex-shrink-0"><p class="text-xs text-amber-400 font-bold mb-1">⚠ Don't confuse with: ${card.also}</p><p class="text-gray-300 text-sm">${card.also_meaning}</p></div>`}
+     ${card.sense2&&html`<div class="p-2.5 bg-purple-500/10 rounded-lg border border-purple-500/20 flex-shrink-0"><p class="text-xs text-purple-400 font-bold mb-1">↔ Opposite sense</p><p class="text-gray-300 text-sm">${card.sense2}</p>${card.ex2&&html`<p class="text-gray-400 text-xs italic mt-1">"${card.ex2}"</p>`}</div>`}
+     ${card.lang&&html`<p class="text-xs text-gray-500 flex-shrink-0">Language: ${card.lang}</p>`}
+     ${card.exam&&html`<div class="flex-shrink-0"><${ExamTag} exam=${card.exam}/></div>`}
+    </div>
+   </div>
+  </div>
+  ${flipped&&html`<div class="flex gap-3">
+   <button onClick=${(e)=>{e.stopPropagation();onMarkReview(ckey);next();}} class="flex-1 py-3 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-400 font-bold text-sm active:scale-95 transition-transform">↩ Review Again</button>
+   <button onClick=${(e)=>{e.stopPropagation();onMarkKnown(ckey);next();}} class="flex-1 py-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-bold text-sm active:scale-95 transition-transform">✓ Got It!</button>
+  </div>`}
+  <div class="flex gap-2">
+   <button onClick=${prev} disabled=${idx===0} class="flex-1 py-2.5 rounded-xl bg-gray-800 text-gray-300 disabled:opacity-30 text-sm font-medium active:scale-95 transition-transform">← Prev</button>
+   <button onClick=${next} disabled=${idx===cards.length-1} class="flex-1 py-2.5 rounded-xl bg-gray-800 text-gray-300 disabled:opacity-30 text-sm font-medium active:scale-95 transition-transform">Next →</button>
+  </div>
+ </div>`;
+}
+
+/* ═══════════════════════════ QUIZ ═══════════════════════════ */
+
+function QuizQuestion({q,onAnswer,answered}){
+ const[selected,setSelected]=useState(null);
+ const opts=q.type==="odd_one_out"?q.words:q.type==="double_blank"?q.options.map(o=>`"${o.a}"  ·  "${o.b}"`):q.options;
+ const pick=(i)=>{if(answered||selected!==null)return;setSelected(i);setTimeout(()=>onAnswer(i===q.answer),300);};
+ const cls=(i)=>{
+  const base="w-full text-left px-4 py-3.5 rounded-xl transition-all text-sm leading-relaxed active:scale-95";
+  if(selected===null&&!answered)return`${base} border border-gray-700 bg-gray-800/40 text-gray-200`;
+  if(i===q.answer)return`${base} border border-emerald-500 bg-emerald-500/10 text-emerald-100`;
+  if(i===selected)return`${base} border border-rose-500 bg-rose-500/10 text-rose-100`;
+  return`${base} border border-gray-700/40 bg-gray-800/20 text-gray-500 opacity-60`;
+ };
+ return html`<div class="flex flex-col gap-4">
+  <span class="text-xs self-start rounded px-2 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-medium">${TYPE_LABELS[q.type]||q.type}</span>
+  ${q.word&&html`<div class="text-center"><p class="text-xs text-gray-500 uppercase tracking-wider">Target Word</p><p class="text-2xl font-bold text-amber-400">${q.word}</p></div>`}
+  <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-700"><p class="text-gray-100 text-base leading-relaxed whitespace-pre-line">${q.question}</p></div>
+  <div class="flex flex-col gap-2.5">
+   ${opts.map((opt,i)=>html`<button key=${i} onClick=${()=>pick(i)} class=${cls(i)}>
+    <span class="font-bold text-gray-500 mr-2">${String.fromCharCode(65+i)}.</span>${opt}${selected!==null&&i===q.answer?html` <span class="text-emerald-400 font-bold">✓</span>`:""}
+   </button>`)}
+  </div>
+ </div>`;
+}
+
+function QuizMode({quizProgress,onUpdateQuiz}){
+ const[filter,setFilter]=useState("all");
+ const[qIdx,setQIdx]=useState(0);
+ const[answered,setAnswered]=useState(false);
+ const[showExp,setShowExp]=useState(false);
+ const[score,setScore]=useState({c:0,t:0});
+ const[done,setDone]=useState(false);
+ const filtered=useMemo(()=>filter==="all"?QUIZ:QUIZ.filter(q=>q.type===filter),[filter]);
+ const q=filtered[qIdx]||filtered[0];
+ const handleAnswer=(correct)=>{setAnswered(true);setShowExp(true);setScore(s=>({c:s.c+(correct?1:0),t:s.t+1}));onUpdateQuiz(q.id,correct);};
+ const next=()=>{if(qIdx+1>=filtered.length){setDone(true);return;}setQIdx(i=>i+1);setAnswered(false);setShowExp(false);};
+ const changeFilter=(t)=>{setFilter(t);setQIdx(0);setAnswered(false);setShowExp(false);setDone(false);setScore({c:0,t:0});};
+ const restart=()=>{setQIdx(0);setAnswered(false);setShowExp(false);setScore({c:0,t:0});setDone(false);};
+ if(done){
+  const acc=Math.round((score.c/score.t)*100);
+  return html`<div class="flex flex-col items-center gap-6 py-10">
+   <div class="relative"><${ProgressRing} pct=${acc} size=${120} stroke=${10} color=${acc>=80?"#10b981":"#f59e0b"}/>
+    <div class="absolute inset-0 flex flex-col items-center justify-center"><p class="text-3xl font-black text-white">${acc}%</p></div></div>
+   <p class="text-xl font-bold text-white">Session Complete!</p>
+   <p class="text-gray-400">${score.c} / ${score.t} correct</p>
+   ${acc<80&&html`<p class="text-amber-400 text-sm text-center max-w-xs">Review explanations for missed questions — note which technique you should have applied.</p>`}
+   <button onClick=${restart} class="px-8 py-3 rounded-xl bg-amber-500 text-black font-bold text-sm active:scale-95 transition-transform">Practice Again</button>
+  </div>`;
+ }
+ return html`<div class="flex flex-col gap-4">
+  <div class="overflow-x-auto -mx-4 px-4"><div class="flex gap-2 pb-1" style=${{width:"max-content"}}>
+   ${["all",...Object.keys(TYPE_LABELS)].map(t=>html`<button key=${t} onClick=${()=>changeFilter(t)}
+    class=${`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-all ${filter===t?"bg-amber-500 text-black border-amber-500 font-bold":"bg-gray-800 text-gray-400 border-gray-700"}`}>
+    ${t==="all"?"All Types":TYPE_LABELS[t]}</button>`)}
+  </div></div>
+  <div class="flex justify-between text-sm text-gray-500"><span>Q ${qIdx+1} / ${filtered.length}</span><span class="text-emerald-400">${score.c} / ${score.t} correct</span></div>
+  <${QuizQuestion} key=${q.id} q=${q} onAnswer=${handleAnswer} answered=${answered}/>
+  ${showExp&&html`<div class="bg-gray-800/60 rounded-xl p-4 border border-gray-600 flex flex-col gap-2">
+   <p class="text-xs text-amber-400 font-bold uppercase tracking-wider">Explanation</p>
+   <p class="text-gray-200 text-sm leading-relaxed">${q.explanation}</p>
+   ${q.tip&&html`<div class="mt-1 p-3 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+    <p class="text-xs text-indigo-400 font-bold">⚡ Technique Tip</p>
+    <p class="text-gray-300 text-sm mt-1">${q.tip}</p>
+   </div>`}
+  </div>`}
+  ${answered&&html`<button onClick=${next} class="w-full py-3 rounded-xl bg-amber-500 text-black font-bold text-sm active:scale-95 transition-transform">Next Question →</button>`}
+ </div>`;
+}
+
+/* ═══════════════════════════ TECHNIQUES ═══════════════════════════ */
+
+function TechniqueCard({t}){
+ const[open,setOpen]=useState(false);
+ return html`<div class="rounded-2xl border border-gray-700 overflow-hidden bg-gray-900">
+  <button onClick=${()=>setOpen(o=>!o)} class="w-full flex items-center gap-3 p-4 text-left active:bg-gray-800 transition-colors">
+   <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style=${{background:t.color+"22",border:`1px solid ${t.color}44`}}>${t.icon}</div>
+   <div class="flex-1 min-w-0"><p class="font-bold text-white text-sm">${t.id}. ${t.name}</p><p class="text-gray-500 text-xs">${t.subtitle}</p></div>
+   <span class="text-gray-500 text-sm flex-shrink-0">${open?"▲":"▼"}</span>
+  </button>
+  ${open&&html`<div class="px-4 pb-4 flex flex-col gap-3">
+   <div class="flex flex-col gap-1.5">${t.steps.map((s,i)=>html`<div key=${i} class="flex gap-2 text-sm"><span class="text-gray-500 w-5 flex-shrink-0">${i+1}.</span><span class="text-gray-300 leading-relaxed">${s}</span></div>`)}</div>
+   <div class="rounded-xl overflow-hidden border border-gray-700" style=${{borderLeft:`2px solid ${t.color}`}}>
+    <div class="px-3 py-2 bg-gray-800/60"><p class="text-xs text-gray-300 font-medium">${t.eq.q}</p></div>
+    <div class="px-3 py-2 flex flex-col gap-1">${t.eq.opts.map((o,i)=>html`<p key=${i} class=${`text-xs ${i===t.eq.ai?"font-bold":"text-gray-500"}`} style=${i===t.eq.ai?{color:t.color}:{}}>${String.fromCharCode(65+i)}. ${o} ${i===t.eq.ai?"✓":""}</p>`)}</div>
+    <div class="px-3 py-2 bg-gray-900/60 border-t border-gray-700"><p class="text-xs text-gray-300 leading-relaxed">${t.eq.ans}</p></div>
+   </div>
+  </div>`}
+ </div>`;
+}
+
+/* ═══════════════════════════ TABS ═══════════════════════════ */
+
+function HomeTab({cardProgress,quizProgress,onStartLearn,onStartQuiz}){
+ const totals=useMemo(()=>PHASES.reduce((a,p)=>a+buildCards(p).length,0),[]);
+ const known=Object.values(cardProgress).filter(v=>v==="known").length;
+ const qa=Object.keys(quizProgress).length;
+ const qc=Object.values(quizProgress).filter(v=>v===true).length;
+ const mp=totals?Math.round((known/totals)*100):0;
+ const qacc=qa>0?Math.round((qc/qa)*100):0;
+ const ps=useMemo(()=>PHASES.map(p=>{const cards=buildCards(p);const kn=cards.filter((_,i)=>cardProgress[`p${p.id}_c${i}`]==="known").length;return{...p,total:cards.length,kn,pct:cards.length?Math.round((kn/cards.length)*100):0};}),[ cardProgress]);
+ return html`<div class="flex flex-col gap-5">
+  <div class="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-transparent p-4">
+   <p class="text-xs text-amber-400 font-bold uppercase tracking-widest mb-3">COMMAND STATUS</p>
+   <div class="flex items-center gap-5">
+    <div class="relative flex-shrink-0"><${ProgressRing} pct=${mp} size=${90} stroke=${8} color="#f59e0b"/>
+     <div class="absolute inset-0 flex flex-col items-center justify-center"><p class="text-2xl font-black text-white">${mp}%</p></div></div>
+    <div class="flex flex-col gap-2">
+     <div><p class="text-gray-500 text-xs">Cards Mastered</p><p class="text-white font-bold">${known} / ${totals}</p></div>
+     <div><p class="text-gray-500 text-xs">Quiz Accuracy</p><p class="font-bold" style=${{color:qacc>=80?"#10b981":qacc>=60?"#f59e0b":"#ef4444"}}>${qacc}% (${qa} attempts)</p></div>
+    </div>
+   </div>
+  </div>
+  <div><p class="text-xs text-gray-500 uppercase tracking-wider mb-3 font-bold">Phase Progress</p>
+   <div class="grid grid-cols-3 gap-2">${ps.map(p=>html`<button key=${p.id} onClick=${onStartLearn} class="rounded-xl border border-gray-700 bg-gray-900 p-3 flex flex-col gap-2 active:scale-95 transition-transform text-left">
+    <p class="text-lg">${p.icon}</p><p class="text-xs text-gray-400 leading-tight">${p.label}</p>
+    <div class="h-1 bg-gray-800 rounded-full"><div class="h-1 rounded-full" style=${{width:`${p.pct}%`,background:p.color}}></div></div>
+    <p class="text-xs font-bold" style=${{color:p.color}}>${p.pct}%</p>
+   </button>`)}</div>
+  </div>
+  <div><p class="text-xs text-gray-500 uppercase tracking-wider mb-3 font-bold">Today's 45-Min Plan</p>
+   <div class="flex flex-col gap-2">${[
+    {time:"15 min",label:"Learn",sub:"10 synonyms · 5 phrasal verbs · 10 idioms",icon:"📚",color:"#f59e0b"},
+    {time:"15 min",label:"Practice",sub:"Make sentences for the 5 hardest words",icon:"✍️",color:"#10b981"},
+    {time:"15 min",label:"Revise",sub:"Yesterday · 7 days ago · 30 days ago",icon:"🔁",color:"#6366f1"},
+   ].map((item,i)=>html`<div key=${i} class="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-900 p-3">
+    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0" style=${{background:item.color+"22"}}>${item.icon}</div>
+    <div class="flex-1 min-w-0"><div class="flex items-center gap-2"><p class="text-white font-bold text-sm">${item.label}</p><span class="text-xs rounded px-1.5 py-0.5" style=${{background:item.color+"22",color:item.color}}>${item.time}</span></div><p class="text-gray-500 text-xs">${item.sub}</p></div>
+   </div>`)}</div>
+  </div>
+  <div class="grid grid-cols-2 gap-3">
+   <button onClick=${onStartLearn} class="py-3 rounded-xl bg-amber-500 text-black font-bold text-sm active:scale-95 transition-transform">📚 Study Cards</button>
+   <button onClick=${onStartQuiz} class="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm active:scale-95 transition-transform">⚡ Take Quiz</button>
+  </div>
+  <div class="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4">
+   <p class="text-xs text-rose-400 font-bold uppercase tracking-wider mb-3">🚨 Zero-Error Exam Checklist</p>
+   <div class="flex flex-col gap-1.5">${[
+    "Read the direction: Synonym or Antonym? Write +/− on rough sheet first",
+    "Apply Polarity: eliminate options with opposite charge immediately",
+    "Grammar Filter: noun, verb, or adjective? Eliminate grammatical mismatches",
+    "Check for Twins: two options meaning the same → eliminate both",
+    "Look for Root: Mal−, Bene+, Eu+, Anti−, A/An = without",
+    "For Matrix: find ONE certain match and use Unique Anchor only",
+   ].map((step,i)=>html`<div key=${i} class="flex gap-2 items-start text-sm"><span class="text-rose-400 font-bold flex-shrink-0">${i+1}.</span><span class="text-gray-300">${step}</span></div>`)}</div>
+  </div>
+ </div>`;
+}
+
+function LearnTab({progress,onMarkKnown,onMarkReview}){
+ const[activePhase,setActivePhase]=useState(null);
+ if(activePhase!==null){
+  const phase=PHASES[activePhase];
+  return html`<div class="flex flex-col gap-4">
+   <button onClick=${()=>setActivePhase(null)} class="self-start text-gray-400 text-sm active:text-white transition-colors">← All Phases</button>
+   <div class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style=${{background:phase.color+"22"}}>${phase.icon}</div>
+    <div><p class="text-white font-bold">${phase.name}</p><p class="text-gray-500 text-xs">${phase.desc}</p></div>
+   </div>
+   <${PhaseFlashcards} phase=${phase} progress=${progress} onMarkKnown=${onMarkKnown} onMarkReview=${onMarkReview}/>
+  </div>`;
+ }
+ return html`<div class="flex flex-col gap-4">
+  <div><p class="text-white font-bold text-lg">Study Phases</p><p class="text-gray-500 text-sm mt-1">Tap a phase to begin flashcard study.</p></div>
+  ${PHASES.map((p,i)=>html`<button key=${p.id} onClick=${()=>setActivePhase(i)} class="rounded-2xl border border-gray-700 bg-gray-900 p-4 text-left active:scale-95 transition-all">
+   <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style=${{background:p.color+"22",border:`1px solid ${p.color}44`}}>${p.icon}</div>
+    <div class="flex-1 min-w-0"><p class="text-xs font-bold mb-1" style=${{color:p.color}}>${p.label}</p><p class="text-white font-bold text-sm">${p.name}</p><p class="text-gray-500 text-xs">${p.desc}</p></div>
+    <span class="text-gray-600 text-lg">›</span>
+   </div>
+  </button>`)}
+ </div>`;
+}
+
+function TricksTab(){
+ const prefixes=[
+  {prefix:"EU / BENE",charge:"+",ex:"Eulogy, Benevolent"},
+  {prefix:"MAL / DYS",charge:"-",ex:"Malign, Dystopia"},
+  {prefix:"A / AN",charge:"0",ex:"Apathy, Anarchy"},
+  {prefix:"LOQU / DICT",charge:"0",ex:"Loquacious, Dictate"},
+  {prefix:"OMNI",charge:"+",ex:"Omniscient, Omnipotent"},
+  {prefix:"ANTI / CONTRA",charge:"-",ex:"Antipathy, Contradict"},
+ ];
+ const paronyms=[
+  ["Ingenious","Clever/Brilliant","Ingenuous","Innocent/Naive"],
+  ["Elicit","Draw out","Illicit","Illegal"],
+  ["Compliment","Praise","Complement","Completes/Matches"],
+  ["Eminent","Famous","Imminent","About to happen"],
+  ["Venal","Corrupt","Venial","Pardonable"],
+  ["Prescribe","Authorize","Proscribe","Prohibit ★2024"],
+  ["Flounder","Struggle helplessly","Founder","Sink/Fail"],
+  ["Discreet","Tactful/Careful","Discrete","Separate/Distinct"],
+ ];
+ return html`<div class="flex flex-col gap-4">
+  <div><p class="text-white font-bold text-lg">Speed Techniques</p><p class="text-gray-500 text-sm mt-1">8 mathematical shortcuts — solve vocab questions without knowing every word.</p></div>
+  <div class="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4">
+   <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-3">⚡ Prefix Quick Reference</p>
+   <div class="grid grid-cols-2 gap-2">${prefixes.map(p=>html`<div key=${p.prefix} class="bg-gray-900 rounded-lg p-2.5 border border-gray-700">
+    <div class="flex items-center gap-1.5 mb-1"><span class="font-black text-xs text-white">${p.prefix}</span><${ChargeTag} charge=${p.charge}/></div>
+    <p class="text-gray-500 text-xs">${p.ex}</p>
+   </div>`)}</div>
+  </div>
+  <div class="grid grid-cols-2 gap-2">
+   <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3"><p class="text-xs text-emerald-400 font-bold mb-2">🟢 GREEN LIGHT</p><p class="text-xs text-gray-400">AND · MOREOVER · SIMILARLY · ALSO</p><p class="text-xs text-gray-500 mt-1">Tone continues same direction</p></div>
+   <div class="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3"><p class="text-xs text-rose-400 font-bold mb-2">🔴 RED LIGHT</p><p class="text-xs text-gray-400">BUT · DESPITE · ALTHOUGH · YET</p><p class="text-xs text-gray-500 mt-1">Tone REVERSES direction</p></div>
+  </div>
+  <div class="flex flex-col gap-3">${TECHNIQUES.map(t=>html`<${TechniqueCard} key=${t.id} t=${t}/>`)}</div>
+  <div class="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+   <p class="text-xs text-amber-400 font-bold uppercase tracking-wider mb-3">⚠ Paronym Danger Pairs</p>
+   <div class="flex flex-col gap-2">${paronyms.map(([a,am,b,bm])=>html`<div key=${a} class="grid grid-cols-2 gap-2 text-xs">
+    <div class="bg-gray-900 rounded-lg p-2 border border-gray-700"><p class="font-bold text-white">${a}</p><p class="text-gray-400">${am}</p></div>
+    <div class="bg-gray-900 rounded-lg p-2 border border-gray-700"><p class="font-bold text-white">${b}</p><p class="text-gray-400">${bm}</p></div>
+   </div>`)}</div>
+  </div>
+ </div>`;
+}
+
+/* ═══════════════════════════ MAIN APP ═══════════════════════════ */
+
+function VocabMaster(){
+ const[tab,setTab]=useState("home");
+ const[cardProgress,setCardProgress]=useState({});
+ const[quizProgress,setQuizProgress]=useState({});
+ const[loaded,setLoaded]=useState(false);
+ useEffect(()=>{
+  const cp=ls_get("vm_cards");if(cp)setCardProgress(cp);
+  const qp=ls_get("vm_quiz");if(qp)setQuizProgress(qp);
+  setLoaded(true);
+ },[]);
+ const onMarkKnown=useCallback((key)=>{setCardProgress(prev=>{const next={...prev,[key]:"known"};ls_set("vm_cards",next);return next;});},[]);
+ const onMarkReview=useCallback((key)=>{setCardProgress(prev=>{const next={...prev,[key]:"review"};ls_set("vm_cards",next);return next;});},[]);
+ const onUpdateQuiz=useCallback((id,correct)=>{setQuizProgress(prev=>{const next={...prev,[id]:correct};ls_set("vm_quiz",next);return next;});},[]);
+ const TABS=[{id:"home",label:"HQ",icon:"⬡"},{id:"learn",label:"Learn",icon:"📚"},{id:"quiz",label:"Quiz",icon:"⚡"},{id:"tricks",label:"Tricks",icon:"🧮"}];
+ if(!loaded)return html`<div class="min-h-screen bg-gray-950 flex items-center justify-center"><div class="text-amber-400 text-xl">Loading…</div></div>`;
+ return html`<div class="min-h-screen bg-gray-950 text-white flex flex-col" style=${{fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+  <div class="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-3 flex items-center justify-between">
+   <div><p class="text-amber-400 font-black text-base tracking-tight">VOCAB MASTER</p><p class="text-gray-600 text-xs">CUET · Zero Error Method</p></div>
+   <div class="flex gap-1">${TABS.map(t=>html`<button key=${t.id} onClick=${()=>setTab(t.id)} class=${`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab===t.id?"bg-amber-500 text-black":"text-gray-500"}`}>${t.icon}</button>`)}</div>
+  </div>
+  <div class="flex-1 overflow-y-auto">
+   <div class="max-w-lg mx-auto px-4 py-4 pb-24">
+    ${tab==="home"&&html`<${HomeTab} cardProgress=${cardProgress} quizProgress=${quizProgress} onStartLearn=${()=>setTab("learn")} onStartQuiz=${()=>setTab("quiz")}/>`}
+    ${tab==="learn"&&html`<${LearnTab} progress=${cardProgress} onMarkKnown=${onMarkKnown} onMarkReview=${onMarkReview}/>`}
+    ${tab==="quiz"&&html`<${QuizMode} quizProgress=${quizProgress} onUpdateQuiz=${onUpdateQuiz}/>`}
+    ${tab==="tricks"&&html`<${TricksTab}/>`}
+   </div>
+  </div>
+  <div class="fixed bottom-0 left-0 right-0 z-50 bg-gray-950/95 backdrop-blur border-t border-gray-800">
+   <div class="max-w-lg mx-auto flex">${TABS.map(t=>html`<button key=${t.id} onClick=${()=>setTab(t.id)} class=${`flex-1 flex flex-col items-center py-3 gap-1 transition-all ${tab===t.id?"text-amber-400":"text-gray-600"}`}><span class="text-xl leading-none">${t.icon}</span><span class="text-xs font-bold">${t.label}</span></button>`)}</div>
+  </div>
+ </div>`;
+}
+
+render(html`<${VocabMaster}/>`,document.getElementById('root'));
+</script>
+</body>
+</html>
